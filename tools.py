@@ -47,5 +47,12 @@ class IVConverter:
         )
 
 
-def sigma_T(T: np.ndarray) -> float:
-    return np.sqrt(np.sum((T - T.mean()) ** 2) / len(T))
+class TemperatureConverter:
+    def __init__(self):
+        pass
+
+    def T(self, V: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
+        return V
+
+    def sigma_T(self, T: np.ndarray) -> float:
+        return np.sqrt(np.sum((T - T.mean()) ** 2) / len(T))
