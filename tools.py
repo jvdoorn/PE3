@@ -1,7 +1,6 @@
 from typing import Union
 
 import numpy as np
-from scipy.stats import linregress
 
 
 def to_kelvin(T_celsius: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
@@ -61,28 +60,11 @@ class TemperatureConverter:
         self.V_in = 5
         self.R = 6800
 
-        # TTC05682 property
+        # TTC05682 properties
         self.R0 = 6800
         self.T0 = to_kelvin(25)
 
-        calibration_data = np.asarray([
-            [120, 0.2],
-            [110, 0.3],
-            [100, 0.4],
-            [90, 0.5],
-            [80, 0.7],
-            [30, 5],
-            [20, 9],
-            [0, 20],
-            [-20, 60],
-            [-30, 100]
-        ]).T
-        temperature_data = to_kelvin(calibration_data[0])
-        resistance_data = calibration_data[1] * 1e3
-        print(temperature_data, resistance_data)
-
-        self.B, _, _, _, self.sigma_B = linregress(1 / temperature_data, np.log(resistance_data))
-        print(self.B, self.sigma_B)
+        self.B = 4050
 
     def R_thermistor(self, V: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
         return self.R * (self.V_in / V - 1)
