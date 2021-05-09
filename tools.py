@@ -1,6 +1,15 @@
 from typing import Union
 
 import numpy as np
+from scipy.stats import linregress
+
+
+def to_kelvin(T_celsius: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
+    return T_celsius + 273.25
+
+
+def to_celsius(T_kelvin: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
+    return T_kelvin - 273.25
 
 
 class IVConverter:
@@ -49,10 +58,37 @@ class IVConverter:
 
 class TemperatureConverter:
     def __init__(self):
-        pass
+        self.V_in = 5
+        self.R = 6800
 
-    def T(self, V: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
-        return V
+        # TTC05682 property
+        self.R0 = 6800
+        self.T0 = to_kelvin(25)
+
+        calibration_data = np.asarray([
+            [120, 0.2],
+            [110, 0.3],
+            [100, 0.4],
+            [90, 0.5],
+            [80, 0.7],
+            [30, 5],
+            [20, 9],
+            [0, 20],
+            [-20, 60],
+            [-30, 100]
+        ]).T
+        temperature_data = to_kelvin(calibration_data[0])
+        resistance_data = calibration_data[1] * 1e3
+        print(temperature_data, resistance_data)
+
+        self.B, _, _, _, self.sigma_B = linregress(1 / temperature_data, np.log(resistance_data))
+        print(self.B, self.sigma_B)
+
+    def R_thermistor(self, V: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
+        return self.R * (self.V_in / V - 1)
+
+    def T(self, R) -> Union[float, np.ndarray]:
+        return 1 / (1 / self.T0 + (1 / self.B) * np.log(R / self.R0))
 
     def sigma_T(self, T: np.ndarray) -> float:
         return np.sqrt(np.sum((T - T.mean()) ** 2) / len(T))
