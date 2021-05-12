@@ -58,7 +58,11 @@ class IVConverter:
 class TemperatureConverter:
     def __init__(self):
         self.V_in = 5
-        self.R = 6800
+        self.sigma_V_in = 0.2
+        self.sigma_V = 0.3052e-3
+
+        self.R1 = 5e3
+        self.R1_tolerance = 0.005
 
         # TTC05682 properties
         self.R0 = 6800
@@ -66,11 +70,19 @@ class TemperatureConverter:
 
         self.B = 4050
 
-    def R_thermistor(self, V: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
-        return self.R * (self.V_in / V - 1)
+    @property
+    def sigma_R1(self) -> float:
+        return self.R1 * self.R1_tolerance
 
-    def T(self, R) -> Union[float, np.ndarray]:
-        return 1 / (1 / self.T0 + (1 / self.B) * np.log(R / self.R0))
+    def sigma_R(self, V: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
+        return np.sqrt((self.V_in * self.sigma_R1 / (V - 1)) ** 2 + (self.R1 * self.sigma_V_in / (V - 1)) ** 2 + (
+            (self.R1 * self.V_in * self.sigma_V / (V - 1) ** 2)) ** 2)
 
-    def sigma_T(self, T: np.ndarray) -> float:
-        return np.sqrt(np.sum((T - T.mean()) ** 2) / len(T))
+    def R(self, V: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
+        return self.R1 * (self.V_in / V - 1)
+
+    def T(self, V: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
+        return 1 / (1 / self.T0 + (1 / self.B) * np.log(self.R(V) / self.R0))
+
+    def sigma_T(self, V: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
+        return self.sigma_R(V) / (self.B * self.R0 * (1 / self.T0 + 1 / self.B * np.log(self.R(V) / self.R0)))
