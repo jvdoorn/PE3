@@ -61,11 +61,12 @@ class TemperatureConverter:
         self.sigma_V_in = 0.2
         self.sigma_V = 0.3052e-3
 
-        self.R1 = 5e3
-        self.R1_tolerance = 0.005
+        self.R1 = 5.08e3
+        self.R1_tolerance = 0.01
 
         # TTC05682 properties
         self.R0 = 6800
+        self.R0_tolerance = 0.05
         self.T0 = to_kelvin(25)
 
         self.B = 4050
@@ -73,6 +74,10 @@ class TemperatureConverter:
     @property
     def sigma_R1(self) -> float:
         return self.R1 * self.R1_tolerance
+
+    @property
+    def sigma_R0(self) -> float:
+        return self.R0 * self.R0_tolerance
 
     def sigma_R(self, V: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
         return np.sqrt((self.V_in * self.sigma_R1 / (V - 1)) ** 2 + (self.R1 * self.sigma_V_in / (V - 1)) ** 2 + (
@@ -84,5 +89,5 @@ class TemperatureConverter:
     def T(self, V: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
         return 1 / (1 / self.T0 + (1 / self.B) * np.log(self.R(V) / self.R0))
 
-    def sigma_T(self, V: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
-        return self.sigma_R(V) / (self.B * self.R0 * (1 / self.T0 + 1 / self.B * np.log(self.R(V) / self.R0)))
+    def sigma_T(self, V: np.ndarray):
+        return np.std(self.T(V))
