@@ -43,7 +43,7 @@ class TemperatureConverter(Converter):
         return self.R1 * (self.V_in / V - 1)
 
     def convert(self, V: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
-        return to_celsius(1 / (1 / self.T0 + (1 / self.B) * np.log(self.R(V) / self.R0)))
+        return to_celsius(1 / (1 / self.T0 + (1 / self.B) * np.log(self.R(V) / self.R0))) - 4.8
 
     def error(self, V: Union[float, np.ndarray]) -> float:
         # return np.std(self.convert(V))
