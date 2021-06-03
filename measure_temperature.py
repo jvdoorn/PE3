@@ -1,22 +1,32 @@
 import matplotlib.pyplot as plt
-from spectral.aquisition.nimydaq import NIMyDAQInterface
-from spectral.utils import timestamp
+import numpy as np
+from specc.aquisition.nimydaq import NIMyDAQInterface
+from specc.data.signal import Signal
+from specc.utils import timestamp
 
-from tools import TemperatureConverter
+from tools import TemperatureConverter, to_celsius
 
-temperature_channel = 'myDAQ1/AI0'
-sample_rate = 1000
-samples_time = 20
+time = timestamp()
+print(f'TIME: {time}')
+
+temperature_channel = 'myDAQ1/AI1'
+sample_rate = 100
+samples_time = 60
 samples = samples_time * sample_rate
 
 daq = NIMyDAQInterface(sample_rate)
 converter = TemperatureConverter()
 
-data = daq.read([temperature_channel], samples)
+data = np.asarray(daq.read([temperature_channel], samples))
+Signal(sample_rate, data).save(f'data/{time}.npz')
+temperature = to_celsius(converter.T(data))
 
-plt.plot(daq.calculate_time_array(samples), converter.T(data))
+print(f'MEAN: {np.mean(temperature)}')
+print(f'STD:  {np.std(temperature)}')
+
+plt.plot(daq.calculate_time_array(samples), temperature)
 plt.xlabel('Time [s]')
-plt.ylabel('Temperature [K]')
+plt.ylabel('Temperature [$\\degree$C]')
 
-plt.savefig(f'figures/temperature-{timestamp()}.svg')
+plt.savefig(f'figures/temperature-{time}.svg')
 plt.show()
