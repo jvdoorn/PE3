@@ -54,8 +54,8 @@ def arrhenius_equation(D0, Ea, beta):
     return D0 * np.exp(-Ea * beta)
 
 
-def fit_arrhenius_equation(D, beta):
-    p = np.polyfit(beta, np.log(D), 1)
+def fit_arrhenius_equation(D, beta, w):
+    p = np.polyfit(beta, np.log(D), 1, w=np.log(w))
 
     Ea = -p[0]
     D0 = np.exp(p[1])

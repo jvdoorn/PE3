@@ -2,6 +2,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from scipy.constants import k
 from specc.data.signal import Signal
+from tabulate import tabulate
 
 from tools import DiodeConverter, TemperatureConverter, arrhenius_equation, fit_arrhenius_equation
 
@@ -32,25 +33,28 @@ for timestamp in timestamps:
     table_content = [
         ['Temperature', temperature_signal.converter.unit, np.mean(temperature_signal.csamples),
          temperature_signal.error],
-        # ['Diode current', diode_signal.converter.unit, np.mean(diode_signal.csamples), diode_signal.error],
+        ['Diode current', diode_signal.converter.unit, np.mean(diode_signal.csamples), diode_signal.error],
         ['Filtered diode current', filtered_diode_signal.converter.unit, np.mean(filtered_diode_signal.csamples),
          filtered_diode_signal.error]
     ]
 
-    # print(tabulate(table_content, table_headers))
+    print(tabulate(table_content, table_headers))
 
     # plot(temperature_signal).show()
     # plot(diode_signal).show()
     # plot(filtered_diode_signal).show()
 
-    beta = 1 / (k * temperature_signal.csamples)
+    temperature = temperature_signal.csamples
+    beta = 1 / (k * temperature)
     current = filtered_diode_signal.csamples
 
-    sort_indices = np.argsort(beta)
+    sort_indices = np.argsort(temperature)
+    temperature = np.take_along_axis(temperature, sort_indices, axis=0)
     beta = np.take_along_axis(beta, sort_indices, axis=0)
     current = np.take_along_axis(current, sort_indices, axis=0)
 
-    beta, unique_indices = np.unique(beta, return_index=True)
+    temperature, unique_indices = np.unique(temperature, return_index=True)
+    beta = np.take_along_axis(beta, unique_indices, axis=0)
 
     averaged_current = np.empty((len(unique_indices)))
     std_current = np.empty((len(unique_indices)))
@@ -58,19 +62,29 @@ for timestamp in timestamps:
     for i, index_pair in enumerate(zip(unique_indices[0:-1], unique_indices[1:])):
         start_index, end_index = index_pair
         averaged_current[i] = np.mean(current[start_index:end_index])
-        std_current[i] = np.std(current[start_index:end_index])
+        std = np.std(current[start_index:end_index])
+        std_current[i] = std if std > 0 else filtered_diode_signal.error
 
         if i == len(unique_indices) - 2:
             averaged_current[-1] = np.mean(current[end_index:])
             std_current[-1] = np.std(current[end_index:])
 
-    Ea, D0 = fit_arrhenius_equation(averaged_current + 1, beta)
+    Ea, D0 = fit_arrhenius_equation(averaged_current + 1, beta, 1 / std_current)
     print(Ea, D0)
 
     plt.plot(beta, averaged_current)
     plt.plot(beta, arrhenius_equation(D0, Ea, beta) - 1)
 
-    plt.xlabel(f'$\\beta$ [J]')
+    plt.xlabel(f'$\\beta$ [$J^{{-1}}$]')
+    plt.ylabel(f'Filtered diode current [{diode_converter.unit}]')
+
+    plt.tight_layout()
+    plt.show()
+
+    plt.plot(temperature, averaged_current)
+    plt.plot(temperature, arrhenius_equation(D0, Ea, beta) - 1)
+
+    plt.xlabel(f'Temperature [{temperature_converter.unit}]')
     plt.ylabel(f'Filtered diode current [{diode_converter.unit}]')
 
     plt.tight_layout()
