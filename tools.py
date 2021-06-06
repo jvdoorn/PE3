@@ -1,8 +1,6 @@
 from typing import Union
 
 import numpy as np
-from scipy.constants import k
-from scipy.optimize import curve_fit
 from specc.analysis.converter import Converter
 
 
@@ -52,26 +50,14 @@ class TemperatureConverter(Converter):
         return 0.1
 
 
-def arrhenius_equation(D0, Ea, T):
-    """
-    Returns the rate coefficient according to the Arrhenius equation, adapted from
-    https://pythonhosted.org/chempy/_modules/chempy/arrhenius.html
-    """
-    return D0 * np.exp(-Ea / (k * T))
+def arrhenius_equation(D0, Ea, beta):
+    return D0 * np.exp(-Ea * beta)
 
 
-def fit_arrhenius_equation(D, T, Derr=None, linearized=False):
-    """
-    Curve fitting of the Arrhenius equation to data points, adapted from
-    https://pythonhosted.org/chempy/_modules/chempy/arrhenius.html
-    """
-    rT = 1 / T
-    lnk = np.log(D)
-    p = np.polyfit(rT, lnk, 1)
-    Ea = -k * p[0]
+def fit_arrhenius_equation(D, beta):
+    p = np.polyfit(beta, np.log(D), 1)
+
+    Ea = -p[0]
     D0 = np.exp(p[1])
-    if linearized:
-        return D0, Ea
 
-    weights = None if Derr is None else 1 / Derr ** 2
-    return curve_fit(arrhenius_equation, T, D, [D0, Ea], weights)
+    return Ea, D0

@@ -1,9 +1,10 @@
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.constants import k
+from scipy.special import factorial
 from specc.data.signal import Signal
 
-from tools import DiodeConverter, TemperatureConverter, arrhenius_equation, fit_arrhenius_equation
+from tools import DiodeConverter, TemperatureConverter, fit_arrhenius_equation
 
 filter_frequency = 1
 resistor = 0.511e6
@@ -43,33 +44,37 @@ for timestamp in timestamps:
     # plot(diode_signal).show()
     # plot(filtered_diode_signal).show()
 
-    temperature = temperature_signal.csamples
+    beta = 1 / (k * temperature_signal.csamples)
     current = filtered_diode_signal.csamples
 
-    sort_indices = np.argsort(temperature)
-    temperature = np.take_along_axis(temperature, sort_indices, axis=0)
+    sort_indices = np.argsort(beta)
+    beta = np.take_along_axis(beta, sort_indices, axis=0)
     current = np.take_along_axis(current, sort_indices, axis=0)
 
-    unique_temperatures, indices = np.unique(temperature, return_index=True)
+    beta, unique_indices = np.unique(beta, return_index=True)
 
-    averaged_current = np.empty((len(indices)))
-    std_current = np.empty((len(indices)))
+    averaged_current = np.empty((len(unique_indices)))
+    std_current = np.empty((len(unique_indices)))
 
-    for i, index_pair in enumerate(zip(indices[0:-1], indices[1:])):
+    for i, index_pair in enumerate(zip(unique_indices[0:-1], unique_indices[1:])):
         start_index, end_index = index_pair
         averaged_current[i] = np.mean(current[start_index:end_index])
         std_current[i] = np.std(current[start_index:end_index])
 
-        if i == len(indices) - 2:
+        if i == len(unique_indices) - 2:
             averaged_current[-1] = np.mean(current[end_index:])
             std_current[-1] = np.std(current[end_index:])
 
-    popt, pcov = fit_arrhenius_equation(np.abs(averaged_current), unique_temperatures)
+    averaged_current += 1
 
-    plt.plot(unique_temperatures, np.abs(averaged_current))
-    plt.plot(unique_temperatures, arrhenius_equation(unique_temperatures, *popt))
+    Ea, D0 = fit_arrhenius_equation(averaged_current, beta)
 
-    plt.xlabel(f'Temperature [{temperature_converter.unit}]')
+    averaged_current -= 1
+
+    plt.plot(beta, averaged_current)
+    plt.plot(beta, D0 * np.exp(-Ea * beta) - 1)
+
+    plt.xlabel(f'$\\beta$ [J]')
     plt.ylabel(f'Filtered diode current [{diode_converter.unit}]')
 
     plt.tight_layout()
