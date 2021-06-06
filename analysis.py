@@ -1,10 +1,9 @@
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.constants import k
-from scipy.special import factorial
 from specc.data.signal import Signal
 
-from tools import DiodeConverter, TemperatureConverter, fit_arrhenius_equation
+from tools import DiodeConverter, TemperatureConverter, arrhenius_equation, fit_arrhenius_equation
 
 filter_frequency = 1
 resistor = 0.511e6
@@ -65,14 +64,11 @@ for timestamp in timestamps:
             averaged_current[-1] = np.mean(current[end_index:])
             std_current[-1] = np.std(current[end_index:])
 
-    averaged_current += 1
-
-    Ea, D0 = fit_arrhenius_equation(averaged_current, beta)
-
-    averaged_current -= 1
+    Ea, D0 = fit_arrhenius_equation(averaged_current + 1, beta)
+    print(Ea, D0)
 
     plt.plot(beta, averaged_current)
-    plt.plot(beta, D0 * np.exp(-Ea * beta) - 1)
+    plt.plot(beta, arrhenius_equation(D0, Ea, beta) - 1)
 
     plt.xlabel(f'$\\beta$ [J]')
     plt.ylabel(f'Filtered diode current [{diode_converter.unit}]')
