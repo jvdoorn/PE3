@@ -59,15 +59,16 @@ for timestamp in timestamps:
     averaged_current = np.empty((len(unique_indices)))
     std_current = np.empty((len(unique_indices)))
 
+    unique_indices = np.append(unique_indices, -1)
     for i, index_pair in enumerate(zip(unique_indices[0:-1], unique_indices[1:])):
         start_index, end_index = index_pair
-        averaged_current[i] = np.mean(current[start_index:end_index])
-        std = np.std(current[start_index:end_index])
-        std_current[i] = std if std > 0 else filtered_diode_signal.error
-
-        if i == len(unique_indices) - 2:
-            averaged_current[-1] = np.mean(current[end_index:])
-            std_current[-1] = np.std(current[end_index:])
+        if start_index == end_index or start_index == len(current) - 1:
+            averaged_current[i] = current[-1]
+            std_current[i] = filtered_diode_signal.error
+        else:
+            averaged_current[i] = np.mean(current[start_index:end_index])
+            std = np.std(current[start_index:end_index])
+            std_current[i] = std if std > 0 else filtered_diode_signal.error
 
     Ea, D0 = fit_arrhenius_equation(averaged_current + 1, beta, 1 / std_current)
     print(Ea, D0)
