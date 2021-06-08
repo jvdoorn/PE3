@@ -11,7 +11,7 @@ resistor = 0.511e6
 
 timestamps = [
     '1622627302',
-    # '1622629593',
+    '1622629593',
 ]
 
 for timestamp in timestamps:
@@ -22,7 +22,7 @@ for timestamp in timestamps:
     diode_converter = DiodeConverter(resistor)
 
     temperature_signal = Signal.load(temperature_file, converter=temperature_converter)
-    diode_signal = Signal.load(diode_file)
+    diode_signal = Signal.load(diode_file, converter=diode_converter)
 
     filtered_diode_fft = diode_signal.fft
     filtered_diode_fft[np.abs(diode_signal.frequencies) >= filter_frequency] = 0
