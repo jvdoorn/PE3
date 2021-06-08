@@ -4,10 +4,8 @@ from scipy.constants import k
 from specc.data.signal import Signal
 from tabulate import tabulate
 
+from analysis import FILTER_FREQUENCY
 from tools import DiodeConverter, TemperatureConverter, arrhenius_equation, fit_arrhenius_equation
-
-filter_frequency = 1
-resistor = 0.511e6
 
 timestamps = [
     '1622627302',
@@ -19,13 +17,13 @@ for timestamp in timestamps:
     diode_file = f'data/current-{timestamp}.npz'
 
     temperature_converter = TemperatureConverter()
-    diode_converter = DiodeConverter(resistor)
+    diode_converter = DiodeConverter()
 
     temperature_signal = Signal.load(temperature_file, converter=temperature_converter)
     diode_signal = Signal.load(diode_file, converter=diode_converter)
 
     filtered_diode_fft = diode_signal.fft
-    filtered_diode_fft[np.abs(diode_signal.frequencies) >= filter_frequency] = 0
+    filtered_diode_fft[np.abs(diode_signal.frequencies) >= FILTER_FREQUENCY] = 0
     filtered_diode_signal = Signal(diode_signal.sample_rate, np.real(np.fft.ifft(filtered_diode_fft)),
                                    converter=diode_converter)
 

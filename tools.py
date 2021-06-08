@@ -13,7 +13,7 @@ def to_celsius(T_kelvin: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
 
 
 class DiodeConverter(Converter):
-    def __init__(self, R: float):
+    def __init__(self, R: float = 0.511e6):
         super().__init__(unit='nA')
 
         self.R = R
