@@ -4,43 +4,29 @@ from scipy.constants import k
 from specc.data.signal import Signal
 from tabulate import tabulate
 
-from analysis import FILTER_FREQUENCY
+from analysis import FILTER_FREQUENCY, SELECTED_DATASETS
 from tools import DiodeConverter, TemperatureConverter, arrhenius_equation, fit_arrhenius_equation
 
-timestamps = [
-    '1622627302',
-    '1622629593',
-]
+temperature_converter = TemperatureConverter()
+diode_converter = DiodeConverter()
 
-for timestamp in timestamps:
+table_headers = ['Timestamp', 'Name', 'D0 (nA)', 'E_A (J)']
+table_content = []
+
+for timestamp, name in SELECTED_DATASETS.items():
     temperature_file = f'data/temperature-{timestamp}.npz'
     diode_file = f'data/current-{timestamp}.npz'
 
-    temperature_converter = TemperatureConverter()
-    diode_converter = DiodeConverter()
-
     temperature_signal = Signal.load(temperature_file, converter=temperature_converter)
-    diode_signal = Signal.load(diode_file, converter=diode_converter)
+    try:
+        diode_signal = Signal.load(diode_file, converter=diode_converter)
+    except FileNotFoundError:
+        continue
 
     filtered_diode_fft = diode_signal.fft
     filtered_diode_fft[np.abs(diode_signal.frequencies) >= FILTER_FREQUENCY] = 0
     filtered_diode_signal = Signal(diode_signal.sample_rate, np.real(np.fft.ifft(filtered_diode_fft)),
                                    converter=diode_converter)
-
-    table_headers = ['Observable', 'Unit', 'Mean', 'STD']
-    table_content = [
-        ['Temperature', temperature_signal.converter.unit, np.mean(temperature_signal.csamples),
-         temperature_signal.error],
-        ['Diode current', diode_signal.converter.unit, np.mean(diode_signal.csamples), diode_signal.error],
-        ['Filtered diode current', filtered_diode_signal.converter.unit, np.mean(filtered_diode_signal.csamples),
-         filtered_diode_signal.error]
-    ]
-
-    print(tabulate(table_content, table_headers))
-
-    # plot(temperature_signal).show()
-    # plot(diode_signal).show()
-    # plot(filtered_diode_signal).show()
 
     temperature = temperature_signal.csamples
     beta = 1 / (k * temperature)
@@ -68,23 +54,30 @@ for timestamp in timestamps:
             std = np.std(current[start_index:end_index])
             std_current[i] = std if std > 0 else filtered_diode_signal.error
 
-    Ea, D0 = fit_arrhenius_equation(averaged_current + 1, beta, 1 / std_current)
-    print(Ea, D0)
+    offset = 1 - np.min(averaged_current)
+    Ea, D0 = fit_arrhenius_equation(averaged_current + offset, beta, 1 / std_current)
+    table_content.append([timestamp, name, D0, Ea])
 
     plt.plot(beta, averaged_current)
-    plt.plot(beta, arrhenius_equation(D0, Ea, beta) - 1)
+    plt.plot(beta, arrhenius_equation(D0, Ea, beta) - offset)
 
+    plt.title(f'{name} (filtered)\ndataset {timestamp}')
     plt.xlabel(f'$\\beta$ [$J^{{-1}}$]')
     plt.ylabel(f'Filtered diode current [{diode_converter.unit}]')
 
     plt.tight_layout()
+    plt.savefig(f'svg/full/{timestamp}-over-beta.svg')
     plt.show()
 
     plt.plot(temperature, averaged_current)
-    plt.plot(temperature, arrhenius_equation(D0, Ea, beta) - 1)
+    plt.plot(temperature, arrhenius_equation(D0, Ea, beta) - offset)
 
+    plt.title(f'{name} (filtered)\ndataset {timestamp}')
     plt.xlabel(f'Temperature [{temperature_converter.unit}]')
     plt.ylabel(f'Filtered diode current [{diode_converter.unit}]')
 
     plt.tight_layout()
+    plt.savefig(f'svg/full/{timestamp}-over-temperature.svg')
     plt.show()
+
+print(tabulate(table_content, table_headers))
