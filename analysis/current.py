@@ -6,7 +6,7 @@ from tabulate import tabulate
 from analysis import FILTER_FREQUENCY, SELECTED_DATASETS
 from tools import DiodeConverter
 
-diode_converter = DiodeConverter()
+diode_converter = DiodeConverter(std=0)
 
 table_headers = ['Timestamp', 'Name', f'Mean ({diode_converter.unit})', 'STD',
                  f'Filtered mean ({diode_converter.unit})', 'Filtered STD']
@@ -29,10 +29,12 @@ for timestamp, name in SELECTED_DATASETS.items():
 
     plt = plot(diode_signal, title=f'{name}\ndataset {timestamp}')
     plt.savefig(f'svg/diode/{timestamp}.svg')
+    plt.savefig(f'/Users/julian/Dropbox/University/PE3/report/figures/diode/{timestamp}.png')
     plt.show()
 
     plt = plot(filtered_diode_signal, title=f'{name} (filtered)\ndataset {timestamp}')
     plt.savefig(f'svg/diode/{timestamp}-filtered.svg')
+    plt.savefig(f'/Users/julian/Dropbox/University/PE3/report/figures/diode/{timestamp}-filtered.png')
     plt.show()
 
 print(tabulate(table_content, table_headers))

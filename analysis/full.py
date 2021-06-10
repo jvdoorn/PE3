@@ -1,21 +1,24 @@
 import numpy as np
 from matplotlib import pyplot as plt
-from scipy.constants import k
+from scipy.constants import electron_volt, k
 from specc.data.signal import Signal
 from tabulate import tabulate
 
 from analysis import FILTER_FREQUENCY, SELECTED_DATASETS
 from tools import DiodeConverter, TemperatureConverter, arrhenius_equation, fit_arrhenius_equation
 
-temperature_converter = TemperatureConverter()
-diode_converter = DiodeConverter()
+temperature_converter = TemperatureConverter(0.3)
 
-table_headers = ['Timestamp', 'Name', 'D0 (nA)', 'E_A (J)']
+table_headers = ['Timestamp', 'Name', 'D0 (nA)', 'E_A (eV)', 'D0 STD (nA)', 'E_A STD (eV)']
 table_content = []
+
+error_every = 32
 
 for timestamp, name in SELECTED_DATASETS.items():
     temperature_file = f'data/temperature-{timestamp}.npz'
     diode_file = f'data/current-{timestamp}.npz'
+
+    diode_converter = DiodeConverter() if not timestamp == 1622623502 else DiodeConverter(0.1e6)
 
     temperature_signal = Signal.load(temperature_file, converter=temperature_converter)
     try:
@@ -55,29 +58,58 @@ for timestamp, name in SELECTED_DATASETS.items():
             std_current[i] = std if std > 0 else filtered_diode_signal.error
 
     offset = 1 - np.min(averaged_current)
-    Ea, D0 = fit_arrhenius_equation(averaged_current + offset, beta, 1 / std_current)
-    table_content.append([timestamp, name, D0, Ea])
+    D0, Ea, D0_std, Ea_std = fit_arrhenius_equation(averaged_current + offset, beta, 1 / std_current)
+    table_content.append([timestamp, name, D0, Ea / electron_volt, D0_std, Ea_std / electron_volt])
 
-    plt.plot(beta, averaged_current)
-    plt.plot(beta, arrhenius_equation(D0, Ea, beta) - offset)
+    plt.clf()
+    plt.errorbar(beta, averaged_current, yerr=std_current, fmt='o', markersize=2, capsize=3, errorevery=error_every,
+                 alpha=0.5)
 
-    plt.title(f'{name} (filtered)\ndataset {timestamp}')
+    plt.title(f'{name} (sanitized)\ndataset {timestamp}')
     plt.xlabel(f'$\\beta$ [$J^{{-1}}$]')
     plt.ylabel(f'Filtered diode current [{diode_converter.unit}]')
 
     plt.tight_layout()
     plt.savefig(f'svg/full/{timestamp}-over-beta.svg')
+    plt.savefig(f'/Users/julian/Dropbox/University/PE3/report/figures/full/{timestamp}-over-beta.png')
     plt.show()
 
-    plt.plot(temperature, averaged_current)
-    plt.plot(temperature, arrhenius_equation(D0, Ea, beta) - offset)
+    plt.errorbar(beta, averaged_current, yerr=std_current, fmt='o', markersize=2, capsize=3, errorevery=error_every,
+                 alpha=0.5)
+    plt.plot(beta, arrhenius_equation(D0, Ea, beta) - offset, zorder=10)
 
-    plt.title(f'{name} (filtered)\ndataset {timestamp}')
+    plt.title(f'{name} (fitted)\ndataset {timestamp}')
+    plt.xlabel(f'$\\beta$ [$J^{{-1}}$]')
+    plt.ylabel(f'Filtered diode current [{diode_converter.unit}]')
+
+    plt.tight_layout()
+    plt.savefig(f'svg/full/{timestamp}-over-beta-fit.svg')
+    plt.savefig(f'/Users/julian/Dropbox/University/PE3/report/figures/full/{timestamp}-over-beta-fit.png')
+    plt.show()
+
+    plt.errorbar(temperature, averaged_current, yerr=std_current, fmt='o', markersize=2, capsize=3,
+                 errorevery=error_every, alpha=0.5)
+
+    plt.title(f'{name} (sanitized)\ndataset {timestamp}')
     plt.xlabel(f'Temperature [{temperature_converter.unit}]')
     plt.ylabel(f'Filtered diode current [{diode_converter.unit}]')
 
     plt.tight_layout()
     plt.savefig(f'svg/full/{timestamp}-over-temperature.svg')
+    plt.savefig(f'/Users/julian/Dropbox/University/PE3/report/figures/full/{timestamp}-over-temperature.png')
+    plt.show()
+
+    plt.errorbar(temperature, averaged_current, yerr=std_current, fmt='o', markersize=2, capsize=3,
+                 errorevery=error_every, alpha=0.5)
+    plt.plot(temperature, arrhenius_equation(D0, Ea, beta) - offset, zorder=10)
+
+    plt.title(f'{name} (fitted)\ndataset {timestamp}')
+    plt.xlabel(f'Temperature [{temperature_converter.unit}]')
+    plt.ylabel(f'Filtered diode current [{diode_converter.unit}]')
+
+    plt.tight_layout()
+    plt.savefig(f'svg/full/{timestamp}-over-temperature-fit.svg')
+    plt.savefig(f'/Users/julian/Dropbox/University/PE3/report/figures/full/{timestamp}-over-temperature-fit.png')
     plt.show()
 
 print(tabulate(table_content, table_headers))
