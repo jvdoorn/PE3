@@ -7,18 +7,17 @@ from tabulate import tabulate
 from analysis import FILTER_FREQUENCY, SELECTED_DATASETS
 from tools import DiodeConverter, TemperatureConverter, arrhenius_equation, fit_arrhenius_equation
 
-temperature_converter = TemperatureConverter(0.3)
+temperature_converter = TemperatureConverter()
 
 table_headers = ['Timestamp', 'Name', 'D0 (nA)', 'E_A (eV)', 'D0 STD (nA)', 'E_A STD (eV)']
 table_content = []
 
 error_every = 32
 
+diode_converter = DiodeConverter()
 for timestamp, name in SELECTED_DATASETS.items():
     temperature_file = f'data/temperature-{timestamp}.npz'
     diode_file = f'data/current-{timestamp}.npz'
-
-    diode_converter = DiodeConverter() if not timestamp == 1622623502 else DiodeConverter(0.1e6)
 
     temperature_signal = Signal.load(temperature_file, converter=temperature_converter)
     try:
@@ -33,36 +32,38 @@ for timestamp, name in SELECTED_DATASETS.items():
 
     temperature = temperature_signal.csamples
     beta = 1 / (k * temperature)
-    current = filtered_diode_signal.csamples
+    voltage = filtered_diode_signal.samples
 
     sort_indices = np.argsort(temperature)
     temperature = np.take_along_axis(temperature, sort_indices, axis=0)
     beta = np.take_along_axis(beta, sort_indices, axis=0)
-    current = np.take_along_axis(current, sort_indices, axis=0)
+    voltage = np.take_along_axis(voltage, sort_indices, axis=0)
 
     temperature, unique_indices = np.unique(temperature, return_index=True)
     beta = np.take_along_axis(beta, unique_indices, axis=0)
 
-    averaged_current = np.empty((len(unique_indices)))
-    std_current = np.empty((len(unique_indices)))
+    averaged_voltage = np.empty((len(unique_indices)))
 
     unique_indices = np.append(unique_indices, -1)
     for i, index_pair in enumerate(zip(unique_indices[0:-1], unique_indices[1:])):
         start_index, end_index = index_pair
-        if start_index == end_index or start_index == len(current) - 1:
-            averaged_current[i] = current[-1]
-            std_current[i] = filtered_diode_signal.error
+        if start_index == end_index or start_index == len(voltage) - 1:
+            averaged_voltage[i] = voltage[-1]
         else:
-            averaged_current[i] = np.mean(current[start_index:end_index])
-            std = np.std(current[start_index:end_index])
-            std_current[i] = std if std > 0 else filtered_diode_signal.error
+            averaged_voltage[i] = np.mean(voltage[start_index:end_index])
+            std = np.std(voltage[start_index:end_index])
 
-    offset = 1 - np.min(averaged_current)
-    D0, Ea, D0_std, Ea_std = fit_arrhenius_equation(averaged_current + offset, beta, 1 / std_current)
+    average_current = diode_converter.convert(averaged_voltage)
+    current_std = diode_converter.error(averaged_voltage)
+
+    offset = 1 - np.min(average_current)
+    weight = average_current / current_std
+
+    D0, Ea, D0_std, Ea_std = fit_arrhenius_equation(average_current + offset, beta, weight)
     table_content.append([timestamp, name, D0, Ea / electron_volt, D0_std, Ea_std / electron_volt])
 
     plt.clf()
-    plt.errorbar(beta, averaged_current, yerr=std_current, fmt='o', markersize=2, capsize=3, errorevery=error_every,
+    plt.errorbar(beta, average_current, yerr=current_std, fmt='o', markersize=2, capsize=3, errorevery=error_every,
                  alpha=0.5)
 
     plt.title(f'{name} (sanitized)\ndataset {timestamp}')
@@ -74,7 +75,7 @@ for timestamp, name in SELECTED_DATASETS.items():
     plt.savefig(f'/Users/julian/Dropbox/University/PE3/report/figures/full/{timestamp}-over-beta.png')
     plt.show()
 
-    plt.errorbar(beta, averaged_current, yerr=std_current, fmt='o', markersize=2, capsize=3, errorevery=error_every,
+    plt.errorbar(beta, average_current, yerr=current_std, fmt='o', markersize=2, capsize=3, errorevery=error_every,
                  alpha=0.5)
     plt.plot(beta, arrhenius_equation(D0, Ea, beta) - offset, zorder=10)
 
@@ -87,7 +88,7 @@ for timestamp, name in SELECTED_DATASETS.items():
     plt.savefig(f'/Users/julian/Dropbox/University/PE3/report/figures/full/{timestamp}-over-beta-fit.png')
     plt.show()
 
-    plt.errorbar(temperature, averaged_current, yerr=std_current, fmt='o', markersize=2, capsize=3,
+    plt.errorbar(temperature, average_current, yerr=current_std, fmt='o', markersize=2, capsize=3,
                  errorevery=error_every, alpha=0.5)
 
     plt.title(f'{name} (sanitized)\ndataset {timestamp}')
@@ -99,7 +100,7 @@ for timestamp, name in SELECTED_DATASETS.items():
     plt.savefig(f'/Users/julian/Dropbox/University/PE3/report/figures/full/{timestamp}-over-temperature.png')
     plt.show()
 
-    plt.errorbar(temperature, averaged_current, yerr=std_current, fmt='o', markersize=2, capsize=3,
+    plt.errorbar(temperature, average_current, yerr=current_std, fmt='o', markersize=2, capsize=3,
                  errorevery=error_every, alpha=0.5)
     plt.plot(temperature, arrhenius_equation(D0, Ea, beta) - offset, zorder=10)
 

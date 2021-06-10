@@ -6,10 +6,10 @@ from tabulate import tabulate
 from analysis import FILTER_FREQUENCY, SELECTED_DATASETS
 from tools import DiodeConverter
 
-diode_converter = DiodeConverter(std=0)
+diode_converter = DiodeConverter()
 
-table_headers = ['Timestamp', 'Name', f'Mean ({diode_converter.unit})', 'STD',
-                 f'Filtered mean ({diode_converter.unit})', 'Filtered STD']
+table_headers = ['Timestamp', 'Name', f'Mean ({diode_converter.unit})', 'Mean STD',
+                 f'Filtered mean ({diode_converter.unit})', 'Mean filtered STD']
 table_content = []
 
 for timestamp, name in SELECTED_DATASETS.items():
@@ -24,8 +24,8 @@ for timestamp, name in SELECTED_DATASETS.items():
     filtered_diode_signal = Signal(diode_signal.sample_rate, np.real(np.fft.ifft(filtered_diode_fft)),
                                    converter=diode_converter)
 
-    table_content.append([timestamp, name, np.mean(diode_signal.csamples), np.std(diode_signal.csamples),
-                          np.mean(filtered_diode_signal.csamples), np.std(filtered_diode_signal.csamples)])
+    table_content.append([timestamp, name, np.mean(diode_signal.csamples), np.mean(diode_signal.error),
+                          np.mean(filtered_diode_signal.csamples), np.mean(filtered_diode_signal.error)])
 
     plt = plot(diode_signal, title=f'{name}\ndataset {timestamp}')
     plt.savefig(f'svg/diode/{timestamp}.svg')
