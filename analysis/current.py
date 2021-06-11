@@ -13,11 +13,8 @@ table_headers = ['Timestamp', 'Name', f'Mean ({diode_converter.unit})', 'Mean ST
 table_content = []
 
 for timestamp, name in SELECTED_DATASETS.items():
-    diode_file = f'data/current-{timestamp}.npz'
-    try:
-        diode_signal = Signal.load(diode_file, converter=diode_converter)
-    except FileNotFoundError:
-        continue
+    diode_file = f'data/diode-{timestamp}.npz'
+    diode_signal = Signal.load(diode_file, converter=diode_converter)
 
     filtered_diode_fft = diode_signal.fft
     filtered_diode_fft[np.abs(diode_signal.frequencies) >= FILTER_FREQUENCY] = 0
